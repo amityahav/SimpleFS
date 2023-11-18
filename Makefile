@@ -1,15 +1,24 @@
-CC=c99
-CFLAGS=-g3 -Wall
+CC = gcc
+CFLAGS = -Wall -g
 
-all: disk
+# List of source files
+SRCS = main.c fs.c disk.c
 
-disk: disk.o
-	$(CC) $(CFLAGS) -o $@ $^
+# List of header files
+HDRS = fs.h disk.h
 
-test: disk
-	./disk
+# Output executable
+TARGET = main
 
-disk.o: disk.c disk.h
+# Default target
+all: $(TARGET)
 
+# Rule to build the executable
+$(TARGET): $(SRCS) $(HDRS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SRCS)
+
+# Rule to clean the project
 clean:
-	$(RM) -f disk *.o
+	rm -f $(TARGET) core
+
+.PHONY: all clean

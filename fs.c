@@ -137,9 +137,16 @@ bool remove_inode(FileSystem *fs, size_t inode_num) {
     }
 
     if (fs->free_inodes[inode_num]) {
-        return true // idempotent
+        return true; // idempotent
     }
 
+    Inode* inode = load_inode(fs, inode_num);
+    if (inode == NULL) {
+        printf("load_inode: failed to load inode %d into memory\n", inode_num);
+        return false;
+    }
+
+    // TODO: free resources
 
 }
 
@@ -147,7 +154,7 @@ Inode* load_inode(FileSystem *fs, size_t inode_num) {
     union Block block;
 
     if (!read_from_disk(fs->disk, INODE_BLOCK(inode_num), block.data)) {
-        printf("load_inode: failed to load inode %d to memory\n", inode_num);
+        printf("load_inode: failed to load inode's block for inode %d\n", inode_num);
         return NULL;
     }
 

@@ -1,4 +1,4 @@
-#include "fs.h"
+#include "src/fs.h"
 
 int main(int agrc, char **argv) {
     // just for testing purposes
@@ -62,7 +62,7 @@ int main(int agrc, char **argv) {
     }
 
     // aserrt all data blocks are unused since its the first time mount
-    for (int i = 0; i < block.super.nblocks; i++) {
+    for (int i = 0; i < NUMBER_OF_DATA_BLOCKS(block.super.nblocks); i++) {
         assert(fs->free_blocks[i]);
     }
 

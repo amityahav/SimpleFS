@@ -2,10 +2,10 @@ CC = gcc
 CFLAGS = -Wall -g
 
 # List of source files
-SRCS = main.c fs.c disk.c
+SRCS = main.c ./src/fs.c ./src/disk.c
 
 # List of header files
-HDRS = fs.h disk.h
+HDRS = ./src/fs.h ./src/disk.h
 
 # Output executable
 TARGET = main

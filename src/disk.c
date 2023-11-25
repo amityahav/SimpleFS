@@ -3,19 +3,19 @@
 Disk* open_disk(const char *path, int nblocks) {
     int fd = open(path, O_CREAT | O_RDWR); 
     if (fd == -1) {
-        perror("failed to open disk");
+        perror("open_disk: failed to open disk");
         return NULL;
     }
 
     if (lseek(fd, BLOCK_OFFSET(nblocks) - 1, SEEK_SET) == -1) {
         close(fd);
-        perror("failed sterching disk image");
+        perror("open_disk: failed sterching disk image");
         return NULL;   
     }
 
     if (write(fd, "\0", 1) < 0) {
         close(fd);
-        perror("failed writing to disk image file");
+        perror("open_disk: failed writing to disk image file");
         return NULL;
     }
 
@@ -31,12 +31,12 @@ Disk* open_disk(const char *path, int nblocks) {
 bool write_to_disk(Disk *disk, int blocknum, char *data) {
     off_t offset = lseek(disk->fd, BLOCK_OFFSET(blocknum), SEEK_SET);
     if (offset == -1) {
-        perror("failed offsetting with the given offset");
+        perror("write_to_disk: failed offsetting with the given offset");
         return false;
     }
 
     if (write(disk->fd, data, BLOCK_SIZE) == -1) {
-        perror("failed to write block to disk");
+        perror("write_to_disk: failed to write block to disk");
         return true;
     }
 
@@ -46,12 +46,12 @@ bool write_to_disk(Disk *disk, int blocknum, char *data) {
 bool read_from_disk(Disk *disk, int blocknum, char *buff) {
     off_t offset = lseek(disk->fd, BLOCK_OFFSET(blocknum), SEEK_SET);
     if (offset == -1) {
-        perror("failed offsetting with the given offset");
+        perror("read_from_disk: failed offsetting with the given offset");
         return false;
     }
 
     if (read(disk->fd, buff, BLOCK_SIZE) == -1) {
-        perror("failed reading block from disk");
+        perror("read_from_disk: failed reading block from disk");
         return false;
     }
 

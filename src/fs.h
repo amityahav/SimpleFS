@@ -7,6 +7,7 @@
 #define POINTERS_PER_INODE 5
 #define POINTERS_PER_BLOCK (BLOCK_SIZE / 4)
 #define NUMBER_OF_INODE_BLOCKS(nblocks) 0.1 * nblocks
+#define NUMBER_OF_DATA_BLOCKS(nblocks) nblocks - NUMBER_OF_INODE_BLOCKS(nblocks) - 1 // superblock
 #define SUPER_BLOCK_NUMBER 0
 #define INODES_FIRST_BLOCK 1
 #define DATA_FIRST_BLOCK(nblocks) INODES_FIRST_BLOCK + NUMBER_OF_INODE_BLOCKS(nblocks)
@@ -20,7 +21,7 @@ typedef struct SuperBlock {
     // a signature for the file system
     uint32_t magic_number;
 
-    // total number of blocks on the disk
+    // total number of blocks on disk
     uint32_t nblocks;
 
     // total number of blocks reserved for storing inodes
@@ -71,15 +72,21 @@ typedef struct Inode {
 
 } Inode;
 
-// creats a new inode in the file system.
-ssize_t create_inode(FileSystem *fs);
-
-// free inode with the given inode_num index.
-bool remove_inode(FileSystem *fs, size_t inode_num);
-
 union Block {
     SuperBlock super;
     Inode inodes[INODES_PER_BLOCK];
     uint32_t pointers[POINTERS_PER_BLOCK]; 
     char data[BLOCK_SIZE];
 } Block;
+
+// creats a new inode in the file system.
+ssize_t create_inode(FileSystem *fs);
+
+// free inode with the given inode_num index.
+bool remove_inode(FileSystem *fs, size_t inode_num);
+
+// loads inode into memory.
+Inode* load_inode(FileSystem *fs, size_t inode_num, union Block *block);
+
+// save inode to to disk.
+bool save_inode(FileSystem *fs, Inode *inode, size_t inode_num, union Block *block);

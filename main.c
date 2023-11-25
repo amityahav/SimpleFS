@@ -58,11 +58,19 @@ int main(int agrc, char **argv) {
     
     // assert all inodes are unused since its the first time mount
     for (int i = 0; i < block.super.inodes_count; i ++) {
-        assert(fs->free_inodes[i] == 0);
+        assert(fs->free_inodes[i]);
+    }
+
+    // aserrt all data blocks are unused since its the first time mount
+    for (int i = 0; i < block.super.nblocks; i++) {
+        assert(fs->free_blocks[i]);
     }
 
     // try format a formatted disk
     assert(!format(disk));
+
+    // create inode (should return the first inode#0)
+    assert(create_inode(fs) == 0);
 
     // cleanup
     close_disk(disk);

@@ -19,7 +19,7 @@ typedef struct {
     int nblocks;
 
     // indicator whether there is a filesystem mounted on the disk
-    bool mounted; 
+    bool mounted;
 
 } Disk;
 

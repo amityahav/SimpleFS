@@ -112,6 +112,31 @@ FileSystem* mount_fs(Disk* disk) {
     return fs;
 }
 
+ssize_t block_alloc(FileSystem *fs) {
+    for (int i = 0; i < NUMBER_OF_DATA_BLOCKS(fs->super.nblocks); i++) {
+        if (fs->free_blocks[i]) {
+            fs->free_blocks[i] = false;
+            return DATA_FIRST_BLOCK(fs->super.nblocks) + i;
+        }
+    }
+
+    return -1;
+}
+
+bool block_dealloc(FileSystem *fs, int block_num) {
+    char zeros[BLOCK_SIZE] = {0};
+
+    if (!write_to_disk(fs->disk, block_num, zeros)) {
+        printf("block_dealloc: failed deallocating block %d\n", block_num);
+        return false;
+    }
+
+    int norm = block_num - DATA_FIRST_BLOCK(fs->super.nblocks);
+    fs->free_blocks[norm] = true;
+
+    return true;
+}
+
 void free_fs(FileSystem *fs) {
     fs->disk = NULL;
     free(fs->free_inodes);
@@ -120,9 +145,25 @@ void free_fs(FileSystem *fs) {
 }
 
 ssize_t create_inode(FileSystem *fs) {
-    // find first invalid inode and return its index
+    union Block block;
+
     for (int i = 0; i < fs->super.inodes_count; i++) {
         if(fs->free_inodes[i]) {
+            Inode *inode = load_inode(fs, i, &block);
+            if (inode == NULL) {
+                printf("create_inode: failed loading inode %d\n", i);
+                return -1;
+            }
+
+            inode->valid = true;
+
+            if (!save_inode(fs, inode, i, &block)) {
+                printf("create_inode: failed saving inode %d\n", i);
+                free(inode);
+                return -1;
+            }
+
+            free(inode);
             fs->free_inodes[i] = false;
             return i;
         }
@@ -227,12 +268,14 @@ bool remove_inode(FileSystem *fs, size_t inode_num) {
 
     fs->free_inodes[inode_num] = true;
 
+    free(inode);
+
     return true;
 }
 
 Inode* load_inode(FileSystem *fs, size_t inode_num, union Block *block) {
     if (!read_from_disk(fs->disk, INODE_BLOCK(inode_num), block->data)) {
-        printf("load_inode: failed to load inode's block for inode %ld\n", inode_num);
+        printf("load_inode: failed to load inodes block for inode %ld\n", inode_num);
         return NULL;
     }
 
@@ -265,12 +308,12 @@ ssize_t read_from_inode(FileSystem *fs, size_t inode_num, char *data, size_t len
     }
 
     if (!inode->valid) {
-        printf("read_from_inode: inode %d is invalid\n", inode_num);
+        printf("read_from_inode: inode %ld is invalid\n", inode_num);
         return -1;
     }
 
     if (offset >= inode->size) {
-        printf("read_from_inode: inode %d size is less than the given offset %d\n", inode_num, offset);
+        printf("read_from_inode: inode %ld size is less than the given offset %ld\n", inode_num, offset);
         return -1;
     }
 
@@ -281,15 +324,67 @@ ssize_t read_from_inode(FileSystem *fs, size_t inode_num, char *data, size_t len
    
     size_t starting_block = offset / BLOCK_SIZE;
     size_t ending_block = (offset + length) / BLOCK_SIZE;
+    size_t current_block = starting_block;
+    size_t s = 0;
+    ssize_t n = 0;
+    union Block indirect_block;
+    bool loaded = false;
 
-    if (starting_block < POINTERS_PER_INODE) {
-        for (int i = starting_block; i < POINTERS_PER_INODE && i <= ending_block; i++) {
-            // read and copy to buffer
+    while (current_block <= ending_block) {
+        // part of the direct blocks
+        if (current_block < POINTERS_PER_INODE) {
+            if (!read_from_disk(fs->disk, inode->direct[current_block], block.data)) {
+                printf("read_from_inode: failed reading block %ld\n", current_block);
+                return -1;
+            }
+        } else {
+            if (!loaded) {
+                // load indirect block only once
+                if (!read_from_disk(fs->disk, inode->indirect, indirect_block.data)) {
+                    printf("read_from_inode: failed reading indirect node\n");
+                    return -1;
+                }
+
+                loaded = true;
+            }
+
+            if (!read_from_disk(fs->disk, indirect_block.pointers[current_block - POINTERS_PER_INODE], block.data)) {
+                printf("read_from_inode: failed reading indirect block %ld\n", current_block - POINTERS_PER_INODE);
+                return -1;
+            }
         }
+
+        s = BLOCK_SIZE <= length ? BLOCK_SIZE : length;
+            
+        memcpy(data + n, block.data, s);
+
+        n += s;
+        length -= s;
+        current_block++;
+    }
+    
+    return n;
+}
+
+ssize_t write_to_inode(FileSystem *fs, size_t inode_num, char *data, size_t length, size_t offset) {
+    union Block block;
+
+    Inode *inode = load_inode(fs, inode_num, &block);
+    if (inode == NULL) {
+        printf("write_to_inode: failed loading inode %ld\n", inode_num);
+        return -1;
     }
 
-    if (ending_block >= POINTERS_PER_INODE) {
-        // fetch indirect block and do the same
+    if (!inode->valid)
+
+    size_t starting_block = offset / BLOCK_SIZE;
+    size_t ending_block = (offset + length) / BLOCK_SIZE;
+    size_t current_block = starting_block;
+
+    while (starting_block <= ending_block) {
+        if (current_block < POINTERS_PER_INODE)
     }
 
+
+    return 0;
 }

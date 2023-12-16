@@ -14,7 +14,7 @@
 #define SUPER_BLOCK_OFFSET BLOCK_OFFSET(SUPER_BLOCK_NUMBER)
 #define INODE_BLOCKS_OFFSET BLOCK_OFFSET(INODES_FIRST_BLOCK)
 #define INODE_BLOCK(inode_num) INODES_FIRST_BLOCK + inode_num / INODES_PER_BLOCK
-#define INODE_OFFSET_IN_BLOCK(inode_num) inode_num / INODES_PER_BLOCK
+#define INODE_OFFSET_IN_BLOCK(inode_num) inode_num % INODES_PER_BLOCK
 
 typedef struct SuperBlock {
 
@@ -53,6 +53,12 @@ bool format(Disk* disk);
 // mounts a filesystem.
 FileSystem *mount_fs(Disk* disk);
 
+// allocates a new block on disk and returns a pointer to it.
+ssize_t block_alloc(FileSystem *fs);
+
+// deallocates block with the given block_num and returns it to the free blocks pool.
+bool block_dealloc(FileSystem *fs, int block_num);
+
 // frees the given filesystem and its resources.
 void free_fs(FileSystem *fs);
 
@@ -79,7 +85,7 @@ union Block {
     char data[BLOCK_SIZE];
 } Block;
 
-// creats a new inode in the file system.
+// creats a new inode in the file system and returns its pointer.
 ssize_t create_inode(FileSystem *fs);
 
 // free inode with the given inode_num index.
@@ -96,3 +102,7 @@ bool save_inode(FileSystem *fs, Inode *inode, size_t inode_num, union Block *blo
 
 // reads length bytes starting at offset from inode inode_num into data buffer.
 ssize_t read_from_inode(FileSystem *fs, size_t inode_num, char *data, size_t length, size_t offset);
+
+// writes length bytes from data buffer to inode inode_num starting at the given offset.
+ssize_t write_to_inode(FileSystem *fs, size_t inode_num, char *data, size_t length, size_t offset);
+

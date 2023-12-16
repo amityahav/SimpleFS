@@ -82,7 +82,7 @@ FileSystem* mount_fs(Disk* disk) {
                 }
             }
 
-            // scam inode's indirect pointers for used blocks
+            // scan inode's indirect pointers for used blocks
             if (inode->indirect != 0) {
                 int norm = inode->indirect - DATA_FIRST_BLOCK(super.nblocks);
                 fs->free_blocks[norm] = false;
@@ -129,6 +129,23 @@ ssize_t create_inode(FileSystem *fs) {
     }
 
     return -1;
+}
+
+ssize_t stat_inode(FileSystem *fs, size_t inode_num) {
+    union Block block;
+    ssize_t size = 0;
+
+    Inode *inode = load_inode(fs, inode_num, &block);
+    if (inode == NULL) {
+        printf("stat: failed to load inode\n");
+        return -1;
+    }
+
+    size = inode->size;
+
+    free(inode);
+
+    return size;
 }
 
 bool remove_inode(FileSystem *fs, size_t inode_num) {
@@ -236,4 +253,43 @@ bool save_inode(FileSystem *fs, Inode *inode, size_t inode_num, union Block *blo
    }
 
    return true;
+}
+
+ssize_t read_from_inode(FileSystem *fs, size_t inode_num, char *data, size_t length, size_t offset) {
+    union Block block;
+
+    Inode *inode = load_inode(fs, inode_num, &block);
+    if (inode == NULL) {
+        printf("read_from_inode: failed to load inode\n");
+        return -1;
+    }
+
+    if (!inode->valid) {
+        printf("read_from_inode: inode %d is invalid\n", inode_num);
+        return -1;
+    }
+
+    if (offset >= inode->size) {
+        printf("read_from_inode: inode %d size is less than the given offset %d\n", inode_num, offset);
+        return -1;
+    }
+
+    // fix length in case we surpass the inode's size
+    if (offset + length >= inode->size) {
+        length = inode->size - offset;
+    }
+   
+    size_t starting_block = offset / BLOCK_SIZE;
+    size_t ending_block = (offset + length) / BLOCK_SIZE;
+
+    if (starting_block < POINTERS_PER_INODE) {
+        for (int i = starting_block; i < POINTERS_PER_INODE && i <= ending_block; i++) {
+            // read and copy to buffer
+        }
+    }
+
+    if (ending_block >= POINTERS_PER_INODE) {
+        // fetch indirect block and do the same
+    }
+
 }

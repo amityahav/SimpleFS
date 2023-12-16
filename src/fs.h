@@ -85,8 +85,14 @@ ssize_t create_inode(FileSystem *fs);
 // free inode with the given inode_num index.
 bool remove_inode(FileSystem *fs, size_t inode_num);
 
+// returns the logical size in bytes of the given inode_num.
+ssize_t stat_inode(FileSystem *fs, size_t inode_num);
+
 // loads inode into memory.
 Inode* load_inode(FileSystem *fs, size_t inode_num, union Block *block);
 
 // save inode to to disk.
 bool save_inode(FileSystem *fs, Inode *inode, size_t inode_num, union Block *block);
+
+// reads length bytes starting at offset from inode inode_num into data buffer.
+ssize_t read_from_inode(FileSystem *fs, size_t inode_num, char *data, size_t length, size_t offset);

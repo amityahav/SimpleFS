@@ -101,6 +101,8 @@ Inode* load_inode(FileSystem *fs, size_t inode_num, union Block *block);
 bool save_inode(FileSystem *fs, Inode *inode, size_t inode_num, union Block *block);
 
 // reads length bytes starting at offset from inode inode_num into data buffer.
+// it's possible that the inode's data blocks are fragmanted, in that case the data buffer
+// will contain the concatenated content.
 ssize_t read_from_inode(FileSystem *fs, size_t inode_num, char *data, size_t length, size_t offset);
 
 // writes length bytes from data buffer to inode inode_num starting at the given offset.

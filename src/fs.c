@@ -205,20 +205,15 @@ bool remove_inode(FileSystem *fs, size_t inode_num) {
         return false;
     }
 
-    char zeros[BLOCK_SIZE] = {0};
-    int norm;
-
     // free direct pointers if any
     for (int i = 0; i < POINTERS_PER_INODE; i++) {
         if (inode->direct[i] != 0) {
-            if (!write_to_disk(fs->disk, inode->direct[i], zeros)) {
+            if (!block_dealloc(fs, inode->direct[i])) {
                 printf("remove_inode: failed cleaning block %d for inode %ld\n", inode->direct[i], inode_num);
                 free(inode);
                 return false;
             }
 
-            norm = inode->direct[i] - DATA_FIRST_BLOCK(fs->super.nblocks);
-            fs->free_blocks[norm] = true;
             inode->direct[i] = 0;
         }
     }
@@ -235,26 +230,21 @@ bool remove_inode(FileSystem *fs, size_t inode_num) {
 
         for (int i = 0; i < POINTERS_PER_BLOCK; i++) {
             if (indirect_block.pointers[i] != 0) { // free indirect blocks
-                if (!write_to_disk(fs->disk, indirect_block.pointers[i], zeros)) {
-                    printf("remove_inode: failed cleaning block %d for inode %ld\n", inode->direct[i], inode_num);
+                if (!block_dealloc(fs, indirect_block.pointers[i])) {
+                    printf("remove_inode: failed cleaning block %d for inode %ld\n", indirect_block.pointers[i], inode_num);
                     free(inode);
                     return false;
                 }
-
-                norm = indirect_block.pointers[i] - DATA_FIRST_BLOCK(fs->super.nblocks);
-                fs->free_blocks[norm] = true;
             }
         }
 
         // free indirect block
-        if (!write_to_disk(fs->disk, inode->indirect, zeros)) {
-            printf("remove_inode: failed cleaning indirect block %d for inode %ld\n", inode->indirect, inode_num);
+        if (!block_dealloc(fs, inode->indirect)) {
+            printf("remove_inode: failed cleaning block %d for inode %ld\n", inode->indirect, inode_num);
             free(inode);
             return false;
         }
 
-        norm = inode->indirect - DATA_FIRST_BLOCK(fs->super.nblocks);
-        fs->free_blocks[norm] = true; 
         inode->indirect = 0;
     }
 
@@ -365,7 +355,10 @@ ssize_t read_from_inode(FileSystem *fs, size_t inode_num, char *data, size_t len
         }
 
         // if current block is not allocated,
-        // skip to the next one
+        // skip to the next one. in case of a sparse file 
+        // this unallocated block should be treated as a block filled with zeros
+        // and be copied on the fly to the caller's buffer. 
+        // this is not implemented currently.
         if (!bp) {
             current_block++;
             continue;
@@ -435,6 +428,7 @@ ssize_t write_to_inode(FileSystem *fs, size_t inode_num, char *data, size_t leng
                 }
 
                 inode->direct[current_block] = block_ptr;
+                inode->size += BLOCK_SIZE;
                 inode_modified = true;
             }
 
@@ -476,6 +470,7 @@ ssize_t write_to_inode(FileSystem *fs, size_t inode_num, char *data, size_t leng
                 }
 
                 indirect_block.pointers[current_block - POINTERS_PER_INODE] = block_ptr;
+                inode->size += BLOCK_SIZE;
                 indirect_modified = true;
             }          
             

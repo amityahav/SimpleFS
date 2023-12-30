@@ -92,6 +92,8 @@ ssize_t create_inode(FileSystem *fs);
 bool remove_inode(FileSystem *fs, size_t inode_num);
 
 // returns the logical size in bytes of the given inode_num.
+// for simplicity the file's size is not fully accurate and is calculated by
+// inode's total allocated blocks * BLOCK_SIZE.
 ssize_t stat_inode(FileSystem *fs, size_t inode_num);
 
 // loads inode into memory.
@@ -102,7 +104,8 @@ bool save_inode(FileSystem *fs, Inode *inode, size_t inode_num, union Block *blo
 
 // reads length bytes starting at offset from inode inode_num into data buffer.
 // it's possible that the inode's data blocks are fragmanted, in that case the data buffer
-// will contain the concatenated content.
+// will contain the concatenated content. this approach may be incorrect since this unallocated blocks
+// are gaps of zeros that should be part of the file as well.
 ssize_t read_from_inode(FileSystem *fs, size_t inode_num, char *data, size_t length, size_t offset);
 
 // writes length bytes from data buffer to inode inode_num starting at the given offset.
